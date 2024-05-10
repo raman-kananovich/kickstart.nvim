@@ -1,4 +1,4 @@
---[[
+--[[leave.sp
 
 =====================================================================
 ==================== READ THIS BEFORE CONTINUING ====================
@@ -84,14 +84,19 @@ I hope you enjoy your Neovim journey,
 P.S. You can delete this when you're done too. It's your config now! :)
 --]]
 
+-- Bind :Config command to the init.lua file
+vim.cmd 'command! Config e ~/.config/nvim/init.lua'
+
+-- vim.cmd [[ autocmd FileType typescript setlocal nospell ]]
+vim.cmd [[ autocmd BufWinEnter,BufWritePost *.vim,*.js,*.jsx,*.json,*.md call spelunker#check()]]
 -- Set <space> as the leader key
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
--- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+-- Set to true if you have a Nerd Font installed
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -102,7 +107,7 @@ vim.g.have_nerd_font = false
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -166,6 +171,12 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+
+vim.keymap.set('n', '<leader>tf', ':Neotree toggle left<CR>', { desc = 'Toggle Neotree' })
+vim.keymap.set('n', '<leader>tb', ':Neotree toggle show buffers left<CR>', { desc = 'Toggle Neotree Buffers' })
+vim.keymap.set('n', '<leader>ts', ':Neotree float git_status<CR>', { desc = 'Show Neotree Git Status float' })
+vim.keymap.set('n', '<leader>gp', ':Gitsigns preview_hunk<CR>', { desc = 'Gitsigns preview_hunk' })
+vim.keymap.set('n', '<leader>gt', ':Gitsigns toggle_current_line_blame<CR>', { desc = 'Gitsigns toggle_current_line_blame' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -240,11 +251,14 @@ require('lazy').setup({
   -- "gc" to comment visual regions/lines
   { 'numToStr/Comment.nvim', opts = {} },
 
-  -- Here is a more advanced example where we pass configuration
-  -- options to `gitsigns.nvim`. This is equivalent to the following Lua:
-  --    require('gitsigns').setup({ ... })
-  --
-  -- See `:help gitsigns` to understand what the configuration keys do
+  {
+    'tpope/vim-fugitive',
+  },
+
+  {
+    'kamykn/spelunker.vim',
+  },
+
   { -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
     opts = {
@@ -359,6 +373,20 @@ require('lazy').setup({
         --   },
         -- },
         -- pickers = {}
+        defaults = {
+          path_display = function(opts, path)
+            local tail = require('telescope.utils').path_tail(path)
+            return string.format('%s (%s)', tail, path)
+          end,
+          file_sorter = require('telescope.sorters').get_fzy_sorter,
+          generic_sorter = require('telescope.sorters').get_generic_fuzzy_sorter,
+        },
+        pickers = {
+          find_files = {
+
+            sort_lastused = true,
+          },
+        },
         extensions = {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
@@ -405,6 +433,18 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sn', function()
         builtin.find_files { cwd = vim.fn.stdpath 'config' }
       end, { desc = '[S]earch [N]eovim files' })
+    end,
+  },
+
+  {
+    'princejoogie/dir-telescope.nvim',
+    dependencies = { 'nvim-telescope/telescope.nvim' },
+    config = function()
+      require('dir-telescope').setup {
+        no_ignore = true,
+        show_preview = true,
+        hidden = false,
+      }
     end,
   },
 
@@ -784,12 +824,14 @@ require('lazy').setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.colorscheme 'tokyonight-moon'
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi 'Comment gui=none'
     end,
   },
+
+  { 'catppuccin/nvim', name = 'catppuccin', priority = 1000 },
 
   -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
@@ -831,6 +873,36 @@ require('lazy').setup({
       --  Check out: https://github.com/echasnovski/mini.nvim
     end,
   },
+
+  {
+    'nvim-neotest/neotest',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'antoinemadec/FixCursorHold.nvim',
+      'nvim-treesitter/nvim-treesitter',
+      'nvim-neotest/neotest-jest',
+      'nvim-neotest/nvim-nio',
+    },
+    config = function()
+      require('neotest').setup {
+        adapters = {
+          require 'neotest-jest' {
+            jestCommand = 'yarn jest',
+            --  jestConfigFile = 'custom.jest.config.ts',
+            --  env = { CI = true },
+            --  cwd = function(path)
+            --    return vim.fn.getcwd()
+            --  end,
+            jest_test_discovery = true,
+          },
+        },
+        discovery = {
+          enabled = false,
+        },
+      }
+    end,
+  },
+
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
@@ -861,6 +933,69 @@ require('lazy').setup({
       --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
       --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
       --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+    end,
+  },
+
+  {
+    'nvim-neo-tree/neo-tree.nvim',
+    version = '*',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
+      'MunifTanjim/nui.nvim',
+      {
+        's1n7ax/nvim-window-picker',
+        version = '2.*',
+        config = function()
+          require('window-picker').setup {
+            hint = 'floating-big-letter',
+            filter_rules = {
+              include_current_win = false,
+              autoselect_one = true,
+              -- filter using buffer options
+              bo = {
+                -- if the file type is one of following, the window will be ignored
+                filetype = { 'neo-tree', 'neo-tree-popup', 'notify' },
+                -- if the buffer type is one of following, the window will be ignored
+                buftype = { 'terminal', 'quickfix' },
+              },
+            },
+          }
+        end,
+      },
+    },
+    config = function()
+      require('neo-tree').setup {
+        window = {
+          mappings = {
+            ['<space>'] = 'noop',
+            ['o'] = 'toggle_node',
+          },
+        },
+        buffers = {
+          follow_current_file = {
+            enabled = true,
+          },
+        },
+        filesystem = {
+          follow_current_file = {
+            enabled = true,
+          },
+        },
+      }
+    end,
+  },
+
+  {
+    'windwp/nvim-autopairs',
+    -- Optional dependency
+    dependencies = { 'hrsh7th/nvim-cmp' },
+    config = function()
+      require('nvim-autopairs').setup {}
+      -- If you want to automatically add `(` after selecting a function or method
+      local cmp_autopairs = require 'nvim-autopairs.completion.cmp'
+      local cmp = require 'cmp'
+      cmp.event:on('confirm_done', cmp_autopairs.on_confirm_done())
     end,
   },
 
