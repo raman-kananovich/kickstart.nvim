@@ -178,6 +178,14 @@ vim.keymap.set('n', '<leader>ts', ':Neotree float git_status<CR>', { desc = 'Sho
 vim.keymap.set('n', '<leader>gp', ':Gitsigns preview_hunk<CR>', { desc = 'Gitsigns preview_hunk' })
 vim.keymap.set('n', '<leader>gt', ':Gitsigns toggle_current_line_blame<CR>', { desc = 'Gitsigns toggle_current_line_blame' })
 
+-- tests
+vim.keymap.set('n', '<leader>rt', ':lua require("neotest").run.run()<CR>', { desc = 'Run the current test' })
+vim.keymap.set('n', '<leader>rf', ':lua require("neotest").run.run(vim.fn.expand("%"))<CR>', { desc = 'Run all tests in the current file' })
+
+vim.keymap.set('n', '<leader>bd', ':bd<CR>', { desc = '[D]elete current buffer' })
+vim.keymap.set('n', '<leader>bn', ':bn<CR>', { desc = 'Switch to the [n]ext buffer' })
+vim.keymap.set('n', '<leader>bp', ':bp<CR>', { desc = 'Switch to the [p]rev buffer' })
+
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -236,6 +244,13 @@ vim.opt.rtp:prepend(lazypath)
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
+  {
+    'MeanderingProgrammer/render-markdown.nvim',
+    opts = {},
+    dependencies = { 'nvim-treesitter/nvim-treesitter', 'echasnovski/mini.nvim' }, -- if you use the mini.nvim suite
+    -- dependencies = { 'nvim-treesitter/nvim-treesitter', 'echasnovski/mini.icons' }, -- if you use standalone mini plugins
+    -- dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' }, -- if you prefer nvim-web-devicons
+  },
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
@@ -294,19 +309,32 @@ require('lazy').setup({
       require('which-key').setup()
 
       -- Document existing key chains
-      require('which-key').register {
-        ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
-        ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
-        ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
-        ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
-        ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
-        ['<leader>t'] = { name = '[T]oggle', _ = 'which_key_ignore' },
-        ['<leader>h'] = { name = 'Git [H]unk', _ = 'which_key_ignore' },
+      require('which-key').add {
+        { '<leader>c', group = '[C]ode' },
+        { '<leader>c_', hidden = true },
+
+        { '<leader>d', group = '[D]ocument' },
+        { '<leader>d_', hidden = true },
+
+        { '<leader>r', group = '[R]ename' },
+        { '<leader>r_', hidden = true },
+
+        { '<leader>s', group = '[S]earch' },
+        { '<leader>s_', hidden = true },
+
+        { '<leader>w', group = '[W]orkspace' },
+        { '<leader>w_', hidden = true },
+
+        { '<leader>t', group = '[T]oggle' },
+        { '<leader>t_', hidden = true },
+
+        { '<leader>h', group = 'Git [H]unk' },
+        { '<leader>h_', hidden = true },
       }
       -- visual mode
-      require('which-key').register({
-        ['<leader>h'] = { 'Git [H]unk' },
-      }, { mode = 'v' })
+      require('which-key').add {
+        { '<leader>h', name = 'Git [H]unk', mode = 'v' },
+      }
     end,
   },
 
@@ -692,6 +720,10 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
+        typescript = { { 'prettierd', 'prettier' } },
+        typescriptreact = { { 'prettierd', 'prettier' } },
+        javascript = { { 'prettierd', 'prettier' } },
+        javascriptreact = { { 'prettierd', 'prettier' } },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -887,7 +919,7 @@ require('lazy').setup({
       require('neotest').setup {
         adapters = {
           require 'neotest-jest' {
-            jestCommand = 'yarn jest',
+            jestCommand = 'yarn jest --runInBand',
             --  jestConfigFile = 'custom.jest.config.ts',
             --  env = { CI = true },
             --  cwd = function(path)
@@ -998,7 +1030,18 @@ require('lazy').setup({
       cmp.event:on('confirm_done', cmp_autopairs.on_confirm_done())
     end,
   },
+  --  {
+  --    'rmagatti/auto-session',
+  --    lazy = false,
 
+  ---enables autocomplete for opts
+  ---@module "auto-session"
+  ---@type AutoSession.Config
+  --    opts = {
+  --     suppressed_dirs = { '~/', '~/Projects', '~/Downloads', '/' },
+  -- log_level = 'debug',
+  --    },
+  --  },
   -- The following two comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and
   -- place them in the correct locations.
@@ -1043,5 +1086,12 @@ require('lazy').setup({
   },
 })
 
--- The line beneath this is called `modeline`. See `:help modeline`
--- vim: ts=2 sts=2 sw=2 et
+function find_tsconfig_dirs()
+  local tsconfig_dirs = {}
+  local f = io.popen 'find . -name node_modules -prune -o -name tsconfig.json -print'
+  for dir in f:lines() do
+    table.insert(tsconfig_dirs, dir:match '(.*)/tsconfig.json')
+  end
+  f:close()
+  return tsconfig_dirs
+end
